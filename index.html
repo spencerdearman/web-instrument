@@ -2,86 +2,155 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Accelerometer Demo with Tone.js</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Instrument</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            color: #fff;
+        }
+        .slider-container {
+            margin: 20px auto;
+            width: 90%;
+        }
+        .slider-label {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .controls {
+            margin: 20px auto;
+        }
         .indicatorDot {
             width: 30px;
             height: 30px;
             background-color: #e5b17e;
             border-radius: 50%;
             position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #444;
+            color: white;
+            font-size: 16px;
+        }
+        button:active {
+            background-color: #666;
         }
     </style>
+</head>
+<body>
+    <h1>Interactive Phone Instrument</h1>
+    
+    <div class="slider-container">
+        <div class="slider-label">Frequency Range</div>
+        <input id="frequencyRange" type="range" min="100" max="2000" value="440">
+    </div>
+
+    <div class="slider-container">
+        <div class="slider-label">Reverb Intensity</div>
+        <input id="reverbIntensity" type="range" min="0" max="1" step="0.1" value="0.5">
+    </div>
+
+    <div class="slider-container">
+        <div class="slider-label">Volume</div>
+        <input id="volumeControl" type="range" min="-60" max="0" step="1" value="-12">
+    </div>
+
+    <div class="controls">
+        <button id="startButton">Start</button>
+        <button id="stopButton" style="display: none;">Stop</button>
+    </div>
+
+    <div class="indicatorDot"></div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
     <script>
-        var px = 50; // Position x and y
-        var py = 50;
-        var vx = 0.0; // Velocity x and y
-        var vy = 0.0;
-        var updateRate = 1 / 60; // Sensor refresh rate
+        // Initialize global variables
+        let osc, reverb, volume, isTouching = false;
 
-        let osc; // Oscillator
+        // Initialize Tone.js elements
+        function setupAudio() {
+            const frequency = document.getElementById('frequencyRange').value;
+            const reverbIntensity = document.getElementById('reverbIntensity').value;
+            const volumeLevel = document.getElementById('volumeControl').value;
 
-        // Start Tone.js and create an oscillator
-        function startAudio() {
-            Tone.start().then(() => {
-                osc = new Tone.Oscillator(440, "sine").toDestination();
-                osc.start();
-                document.getElementById("startButton").style.display = "none"; // Hide start button
-            });
+            osc = new Tone.Oscillator(frequency, "sine").start();
+            reverb = new Tone.Reverb(reverbIntensity).toDestination();
+            volume = new Tone.Volume(volumeLevel).toDestination();
+
+            osc.connect(volume);
+            volume.connect(reverb);
         }
 
-        function getAccel() {
-            DeviceMotionEvent.requestPermission().then(response => {
-                if (response == 'granted') {
-                    // Add a listener to get smartphone orientation 
-                    window.addEventListener('deviceorientation', (event) => {
-                        // Expose each orientation angle in a more readable way
-                        const rotation_degrees = event.alpha;
-                        const frontToBack_degrees = event.beta;
-                        const leftToRight_degrees = event.gamma;
+        // Handle accelerometer and gyroscope data
+        function handleMotion(event) {
+            const beta = event.beta; // Forward/backward tilt
+            const gamma = event.gamma; // Left/right tilt
 
-                        // Update velocity according to how tilted the phone is
-                        vx = vx + leftToRight_degrees * updateRate * 2; 
-                        vy = vy + frontToBack_degrees * updateRate;
+            // Change pitch based on beta
+            osc.frequency.value = Tone.Frequency(440).transpose(beta / 10);
 
-                        // Update position and clip it to bounds
-                        px = px + vx * 0.5;
-                        if (px > 98 || px < 0) { 
-                            px = Math.max(0, Math.min(98, px)); // Clip px between 0-98
-                            vx = 0;
-                        }
-
-                        py = py + vy * 0.5;
-                        if (py > 98 || py < 0) {
-                            py = Math.max(0, Math.min(98, py)); // Clip py between 0-98
-                            vy = 0;
-                        }
-
-                        // Update dot position
-                        const dot = document.getElementsByClassName("indicatorDot")[0];
-                        dot.setAttribute('style', "left:" + (px) + "%;" + "top:" + (py) + "%;");
-
-                        // Adjust oscillator frequency and volume based on position
-                        if (osc) {
-                            if (py < 50) {
-                                osc.frequency.value = 440 + (50 - py) * 10; // Higher frequency when dot moves up
-                            } else {
-                                osc.frequency.value = 440 - (py - 50) * 10; // Lower frequency when dot moves down
-                            }
-                            osc.volume.value = -Math.abs(py - 50) / 10; // Adjust volume
-                        }
-                    });
-                }
-            });
+            // Adjust tone or filter effects based on gamma
+            reverb.decay = Math.max(0.1, gamma / 90);
         }
+
+        // Handle touch events for reverb
+        function handleTouchStart() {
+            isTouching = true;
+            reverb.wet.value = 1; // Increase reverb
+        }
+
+        function handleTouchEnd() {
+            isTouching = false;
+            reverb.wet.value = 0; // Remove reverb
+        }
+
+        // Start audio and sensors
+        document.getElementById('startButton').addEventListener('click', async () => {
+            await Tone.start();
+            setupAudio();
+
+            // Request device motion permissions
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', handleMotion);
+                    }
+                });
+            } else {
+                window.addEventListener('deviceorientation', handleMotion);
+            }
+
+            // Show Stop button
+            document.getElementById('startButton').style.display = 'none';
+            document.getElementById('stopButton').style.display = 'inline';
+        });
+
+        // Stop audio and sensors
+        document.getElementById('stopButton').addEventListener('click', () => {
+            osc.stop();
+            window.removeEventListener('deviceorientation', handleMotion);
+
+            document.getElementById('startButton').style.display = 'inline';
+            document.getElementById('stopButton').style.display = 'none';
+        });
+
+        // Add touch event listeners
+        window.addEventListener('touchstart', handleTouchStart);
+        window.addEventListener('touchend', handleTouchEnd);
     </script>
-</head>
-<body style="background-color: lightblue;">
-    <div id="main">
-        <button id="startButton" onclick="startAudio()" style="height: 50px;">Start Audio</button>
-        <button id="accelPermsButton" onclick="getAccel()" style="height: 50px;">Get Accelerometer Permissions</button>
-        <div class="indicatorDot" style="left: 30%; top: 30%;"></div>
-    </div>
 </body>
 </html>
