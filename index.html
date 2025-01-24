@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Accelerometer Demo</title>
+    <title>Accelerometer Demo with Tone.js</title>
     <style>
         .indicatorDot {
             width: 30px;
@@ -12,12 +12,18 @@
             position: fixed;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
     <script>    
         var px = 50; // Position x and y
         var py = 50;
         var vx = 0.0; // Velocity x and y
         var vy = 0.0;
         var updateRate = 1 / 60; // Sensor refresh rate
+
+        // Create a Tone.js oscillator and start it
+        const osc = new Tone.Oscillator().toDestination();
+        osc.frequency.value = 440; // Default frequency
+        osc.start();
 
         function getAccel() {
             DeviceMotionEvent.requestPermission().then(response => {
@@ -30,7 +36,6 @@
                         leftToRight_degrees = event.gamma;
 
                         // Update velocity according to how tilted the phone is
-                        // Since phones are narrower than they are long, double the increase to the x velocity
                         vx = vx + leftToRight_degrees * updateRate * 2; 
                         vy = vy + frontToBack_degrees * updateRate;
 
@@ -47,8 +52,20 @@
                             vy = 0;
                         }
 
+                        // Update dot position
                         const dot = document.getElementsByClassName("indicatorDot")[0];
                         dot.setAttribute('style', "left:" + (px) + "%;" + "top:" + (py) + "%;");
+
+                        // Adjust oscillator frequency and volume based on position
+                        if (py < 50) {
+                            osc.frequency.value = 440 + (50 - py) * 10; // Higher frequency when dot moves up
+                        } else {
+                            osc.frequency.value = 440 - (py - 50) * 10; // Lower frequency when dot moves down
+                        }
+
+                        // Volume adjustment
+                        const volume = -Math.abs(py - 50) / 10; // Quieter as it moves away from center
+                        osc.volume.value = volume;
                     });
                 }
             });
