@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phone Instrument</title>
+    <title>Interactive Phone Instrument</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -88,12 +88,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
     <script>
-        let osc, reverb, volume;
-        let x = 0, y = 0, z = 0; // Position
-        let vx = 0, vy = 0, vz = 0; // Velocity
-        let ax = 0, ay = 0, az = 0; // Acceleration
-        let gx = 0, gy = 0, gz = 0; // Gravity offset
-        let lastTimestamp = null;
+        let osc, reverb, volume, pan, delay, isTouching = false;
+        const dot = document.querySelector('.indicatorDot');
 
         // Initialize Tone.js elements
         function setupAudio() {
@@ -104,56 +100,50 @@
             osc = new Tone.Oscillator(frequency, "sine").start();
             reverb = new Tone.Reverb(reverbIntensity).toDestination();
             volume = new Tone.Volume(volumeLevel).toDestination();
+            pan = new Tone.Panner(0).connect(volume); // Initialize stereo panner
+            delay = new Tone.FeedbackDelay(0.2, 0.5).connect(reverb); // Delay effect
 
-            osc.connect(volume);
-            volume.connect(reverb);
+            osc.connect(pan); // Chain oscillator through panner
         }
 
-        // Calibrate to set the initial reference point
-        function calibrate(event) {
-            gx = event.accelerationIncludingGravity.x;
-            gy = event.accelerationIncludingGravity.y;
-            gz = event.accelerationIncludingGravity.z;
+        // Handle motion-based sound changes
+        function handleMotion(event) {
+            const beta = event.beta; // Forward/backward tilt
+            const gamma = event.gamma; // Left/right tilt
 
-            x = y = z = 0;
-            vx = vy = vz = 0;
+            // Adjust pitch based on tilt
+            osc.frequency.value = Tone.Frequency(440).transpose(beta / 10);
 
-            console.log(`Calibrated. Gravity offsets: gx=${gx}, gy=${gy}, gz=${gz}`);
+            // Adjust stereo panning
+            pan.pan.value = gamma / 90; // Map gamma (-90 to 90) to pan range (-1 to 1)
+
+            // Move the indicator dot as feedback
+            const x = 50 + gamma / 2; // Map gamma to X-axis (centered at 50%)
+            const y = 50 - beta / 2;  // Map beta to Y-axis (centered at 50%)
+            dot.style.left = `${x}%`;
+            dot.style.top = `${y}%`;
         }
 
-        // Update position based on motion data
-        function updatePosition(event) {
-            const currentTime = event.timeStamp;
-            if (!lastTimestamp) {
-                lastTimestamp = currentTime;
-                return;
+        // Handle sudden movements for volume change
+        function handleShake(event) {
+            const { x, y, z } = event.accelerationIncludingGravity;
+            const shakeMagnitude = Math.sqrt(x * x + y * y + z * z);
+
+            if (shakeMagnitude > 20) { // Adjust threshold as needed
+                volume.volume.value = -6; // Increase volume briefly
+                setTimeout(() => volume.volume.value = -12, 500); // Reset volume
             }
+        }
 
-            const dt = (currentTime - lastTimestamp) / 1000; // Convert to seconds
-            lastTimestamp = currentTime;
+        // Handle touch events for effects
+        function handleTouchStart() {
+            isTouching = true;
+            delay.wet.value = 0.5; // Enable delay effect on touch
+        }
 
-            // Subtract gravity to get motion-only acceleration
-            ax = event.accelerationIncludingGravity.x - gx;
-            ay = event.accelerationIncludingGravity.y - gy;
-            az = event.accelerationIncludingGravity.z - gz;
-
-            // Integrate acceleration to calculate velocity
-            vx += ax * dt;
-            vy += ay * dt;
-            vz += az * dt;
-
-            // Integrate velocity to calculate position
-            x += vx * dt;
-            y += vy * dt;
-            z += vz * dt;
-
-            // Log positions for debugging
-            console.log(`Position: x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z.toFixed(2)}`);
-
-            // Map position to sound parameters
-            osc.frequency.value = 440 + y * 50; // Map Y position to pitch
-            reverb.decay = Math.max(0.1, Math.min(10, z / 10)); // Map Z position to reverb decay
-            volume.volume.value = Math.max(-60, Math.min(0, x * 5)); // Map X position to volume
+        function handleTouchEnd() {
+            isTouching = false;
+            delay.wet.value = 0; // Disable delay effect on release
         }
 
         // Request motion permissions
@@ -161,8 +151,8 @@
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(response => {
                     if (response === 'granted') {
-                        window.addEventListener('devicemotion', calibrate, { once: true });
-                        window.addEventListener('devicemotion', updatePosition);
+                        window.addEventListener('deviceorientation', handleMotion);
+                        window.addEventListener('devicemotion', handleShake);
                         document.getElementById('permissionButton').classList.add('hidden');
                         document.getElementById('startButton').classList.remove('hidden');
                     } else {
@@ -172,8 +162,8 @@
                     alert('Error requesting motion permissions: ' + error.message);
                 });
             } else {
-                window.addEventListener('devicemotion', calibrate, { once: true });
-                window.addEventListener('devicemotion', updatePosition);
+                window.addEventListener('deviceorientation', handleMotion);
+                window.addEventListener('devicemotion', handleShake);
                 document.getElementById('permissionButton').classList.add('hidden');
                 document.getElementById('startButton').classList.remove('hidden');
             }
@@ -192,12 +182,17 @@
         // Stop button
         document.getElementById('stopButton').addEventListener('click', () => {
             if (osc) osc.stop();
-            window.removeEventListener('devicemotion', updatePosition);
+            window.removeEventListener('deviceorientation', handleMotion);
+            window.removeEventListener('devicemotion', handleShake);
 
             document.getElementById('sliderSection').classList.remove('hidden');
             document.getElementById('startButton').classList.remove('hidden');
             document.getElementById('stopButton').classList.add('hidden');
         });
+
+        // Add touch event listeners
+        window.addEventListener('touchstart', handleTouchStart);
+        window.addEventListener('touchend', handleTouchEnd);
     </script>
 </body>
 </html>
