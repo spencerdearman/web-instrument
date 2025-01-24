@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phone Instrument</title>
+    <title>Phone Instrument with 3D Tracking</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,16 +26,6 @@
         }
         .controls {
             margin: 20px auto;
-        }
-        .indicatorDot {
-            width: 30px;
-            height: 30px;
-            background-color: #e5b17e;
-            border-radius: 50%;
-            position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
         }
         button {
             padding: 10px 20px;
@@ -84,11 +74,11 @@
         <button id="stopButton" class="hidden">Stop</button>
     </div>
 
-    <div class="indicatorDot"></div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
     <script>
         let osc, reverb, volume, isTouching = false;
+        let neutralAlpha, neutralBeta, neutralGamma; // Neutral orientation
+        let neutralX, neutralY, neutralZ; // Neutral acceleration values
 
         // Initialize Tone.js elements
         function setupAudio() {
@@ -104,24 +94,33 @@
             volume.connect(reverb);
         }
 
-        // Handle motion
+        // Set neutral point for 3D tracking
+        function setNeutralPoint(event) {
+            neutralAlpha = event.alpha;
+            neutralBeta = event.beta;
+            neutralGamma = event.gamma;
+
+            neutralX = event.accelerationIncludingGravity.x;
+            neutralY = event.accelerationIncludingGravity.y;
+            neutralZ = event.accelerationIncludingGravity.z;
+
+            console.log(`Neutral point set: alpha=${neutralAlpha}, beta=${neutralBeta}, gamma=${neutralGamma}`);
+        }
+
+        // Handle motion changes
         function handleMotion(event) {
-            const beta = event.beta;
-            const gamma = event.gamma;
+            const deltaAlpha = event.alpha - neutralAlpha;
+            const deltaBeta = event.beta - neutralBeta;
+            const deltaGamma = event.gamma - neutralGamma;
 
-            osc.frequency.value = Tone.Frequency(440).transpose(beta / 10);
-            reverb.decay = Math.max(0.1, gamma / 90);
-        }
+            const deltaX = event.accelerationIncludingGravity.x - neutralX;
+            const deltaY = event.accelerationIncludingGravity.y - neutralY;
+            const deltaZ = event.accelerationIncludingGravity.z - neutralZ;
 
-        // Handle touch for reverb
-        function handleTouchStart() {
-            isTouching = true;
-            reverb.wet.value = 1;
-        }
-
-        function handleTouchEnd() {
-            isTouching = false;
-            reverb.wet.value = 0;
+            // Example mappings
+            osc.frequency.value = Tone.Frequency(440).transpose(deltaBeta / 10); // Beta for pitch
+            reverb.decay = Math.max(0.1, deltaGamma / 90); // Gamma for reverb
+            volume.volume.value = Math.max(-60, deltaX * 5); // Acceleration X for volume
         }
 
         // Request motion permissions
@@ -129,7 +128,9 @@
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(response => {
                     if (response === 'granted') {
+                        window.addEventListener('deviceorientation', setNeutralPoint, { once: true });
                         window.addEventListener('deviceorientation', handleMotion);
+                        window.addEventListener('devicemotion', handleMotion);
                         document.getElementById('permissionButton').classList.add('hidden');
                         document.getElementById('startButton').classList.remove('hidden');
                     } else {
@@ -139,7 +140,9 @@
                     alert('Error requesting motion permissions: ' + error.message);
                 });
             } else {
+                window.addEventListener('deviceorientation', setNeutralPoint, { once: true });
                 window.addEventListener('deviceorientation', handleMotion);
+                window.addEventListener('devicemotion', handleMotion);
                 document.getElementById('permissionButton').classList.add('hidden');
                 document.getElementById('startButton').classList.remove('hidden');
             }
@@ -150,7 +153,6 @@
             await Tone.start();
             setupAudio();
 
-            // Hide sliders and show stop button
             document.getElementById('sliderSection').classList.add('hidden');
             document.getElementById('startButton').classList.add('hidden');
             document.getElementById('stopButton').classList.remove('hidden');
@@ -160,16 +162,12 @@
         document.getElementById('stopButton').addEventListener('click', () => {
             if (osc) osc.stop();
             window.removeEventListener('deviceorientation', handleMotion);
+            window.removeEventListener('devicemotion', handleMotion);
 
-            // Show sliders and start button, hide stop button
             document.getElementById('sliderSection').classList.remove('hidden');
             document.getElementById('startButton').classList.remove('hidden');
             document.getElementById('stopButton').classList.add('hidden');
         });
-
-        // Add touch event listeners
-        window.addEventListener('touchstart', handleTouchStart);
-        window.addEventListener('touchend', handleTouchEnd);
     </script>
 </body>
 </html>
