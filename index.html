@@ -33,9 +33,6 @@
             background-color: #e5b17e;
             border-radius: 50%;
             position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
         }
         button {
             padding: 10px 20px;
@@ -88,8 +85,11 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
     <script>
-        let osc, reverb, volume, pan, delay, isTouching = false;
-        const dot = document.querySelector('.indicatorDot');
+        let osc, reverb, volume, pan, delay;
+        let dot = document.querySelector('.indicatorDot');
+        const boundary = 10; // Internal 10px barrier
+        let dotX = window.innerWidth / 2; // Start at screen center
+        let dotY = window.innerHeight / 2;
 
         // Initialize Tone.js elements
         function setupAudio() {
@@ -100,13 +100,13 @@
             osc = new Tone.Oscillator(frequency, "sine").start();
             reverb = new Tone.Reverb(reverbIntensity).toDestination();
             volume = new Tone.Volume(volumeLevel).toDestination();
-            pan = new Tone.Panner(0).connect(volume); // Initialize stereo panner
-            delay = new Tone.FeedbackDelay(0.2, 0.5).connect(reverb); // Delay effect
+            pan = new Tone.Panner(0).connect(volume);
+            delay = new Tone.FeedbackDelay(0.2, 0.5).connect(reverb);
 
-            osc.connect(pan); // Chain oscillator through panner
+            osc.connect(pan);
         }
 
-        // Handle motion-based sound changes
+        // Handle motion-based sound and ball movement
         function handleMotion(event) {
             const beta = event.beta; // Forward/backward tilt
             const gamma = event.gamma; // Left/right tilt
@@ -115,13 +115,20 @@
             osc.frequency.value = Tone.Frequency(440).transpose(beta / 10);
 
             // Adjust stereo panning
-            pan.pan.value = gamma / 90; // Map gamma (-90 to 90) to pan range (-1 to 1)
+            pan.pan.value = gamma / 90;
 
-            // Move the indicator dot as feedback
-            const x = 50 + gamma / 2; // Map gamma to X-axis (centered at 50%)
-            const y = 50 - beta / 2;  // Map beta to Y-axis (centered at 50%)
-            dot.style.left = `${x}%`;
-            dot.style.top = `${y}%`;
+            // Move the ball in the direction of tilt
+            const speed = 2; // Adjust speed as necessary
+            dotX += gamma * speed * 0.01; // Map gamma to horizontal movement
+            dotY += beta * speed * 0.01;  // Map beta to vertical movement
+
+            // Constrain the ball within the screen with 10px padding
+            dotX = Math.max(boundary, Math.min(window.innerWidth - boundary - 30, dotX));
+            dotY = Math.max(boundary, Math.min(window.innerHeight - boundary - 30, dotY));
+
+            // Move the indicator dot
+            dot.style.left = `${dotX}px`;
+            dot.style.top = `${dotY}px`;
         }
 
         // Handle sudden movements for volume change
@@ -129,21 +136,10 @@
             const { x, y, z } = event.accelerationIncludingGravity;
             const shakeMagnitude = Math.sqrt(x * x + y * y + z * z);
 
-            if (shakeMagnitude > 20) { // Adjust threshold as needed
-                volume.volume.value = -6; // Increase volume briefly
+            if (shakeMagnitude > 20) {
+                volume.volume.value = -6; // Increase volume
                 setTimeout(() => volume.volume.value = -12, 500); // Reset volume
             }
-        }
-
-        // Handle touch events for effects
-        function handleTouchStart() {
-            isTouching = true;
-            delay.wet.value = 0.5; // Enable delay effect on touch
-        }
-
-        function handleTouchEnd() {
-            isTouching = false;
-            delay.wet.value = 0; // Disable delay effect on release
         }
 
         // Request motion permissions
@@ -189,10 +185,6 @@
             document.getElementById('startButton').classList.remove('hidden');
             document.getElementById('stopButton').classList.add('hidden');
         });
-
-        // Add touch event listeners
-        window.addEventListener('touchstart', handleTouchStart);
-        window.addEventListener('touchend', handleTouchEnd);
     </script>
 </body>
 </html>
