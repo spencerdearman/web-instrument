@@ -118,21 +118,28 @@
             reverb.wet.value = 0; // Remove reverb
         }
 
-        // Start audio and sensors
-        document.getElementById('startButton').addEventListener('click', async () => {
-            await Tone.start();
-            setupAudio();
-
-            // Request device motion permissions
+        // Request motion sensor permissions
+        function requestMotionPermissions() {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(response => {
                     if (response === 'granted') {
                         window.addEventListener('deviceorientation', handleMotion);
+                    } else {
+                        alert('Permission for motion sensors was denied.');
                     }
+                }).catch(error => {
+                    alert('Error requesting motion sensor permissions: ' + error.message);
                 });
             } else {
                 window.addEventListener('deviceorientation', handleMotion);
             }
+        }
+
+        // Start audio and sensors
+        document.getElementById('startButton').addEventListener('click', async () => {
+            await Tone.start();
+            setupAudio();
+            requestMotionPermissions();
 
             // Show Stop button
             document.getElementById('startButton').style.display = 'none';
@@ -141,7 +148,7 @@
 
         // Stop audio and sensors
         document.getElementById('stopButton').addEventListener('click', () => {
-            osc.stop();
+            if (osc) osc.stop();
             window.removeEventListener('deviceorientation', handleMotion);
 
             document.getElementById('startButton').style.display = 'inline';
