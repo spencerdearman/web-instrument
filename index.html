@@ -13,17 +13,23 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
-    <script>    
+    <script>
         var px = 50; // Position x and y
         var py = 50;
         var vx = 0.0; // Velocity x and y
         var vy = 0.0;
         var updateRate = 1 / 60; // Sensor refresh rate
 
-        // Create a Tone.js oscillator and start it
-        const osc = new Tone.Oscillator().toDestination();
-        osc.frequency.value = 440; // Default frequency
-        osc.start();
+        let osc; // Oscillator
+
+        // Start Tone.js and create an oscillator
+        function startAudio() {
+            Tone.start().then(() => {
+                osc = new Tone.Oscillator(440, "sine").toDestination();
+                osc.start();
+                document.getElementById("startButton").style.display = "none"; // Hide start button
+            });
+        }
 
         function getAccel() {
             DeviceMotionEvent.requestPermission().then(response => {
@@ -31,9 +37,9 @@
                     // Add a listener to get smartphone orientation 
                     window.addEventListener('deviceorientation', (event) => {
                         // Expose each orientation angle in a more readable way
-                        rotation_degrees = event.alpha;
-                        frontToBack_degrees = event.beta;
-                        leftToRight_degrees = event.gamma;
+                        const rotation_degrees = event.alpha;
+                        const frontToBack_degrees = event.beta;
+                        const leftToRight_degrees = event.gamma;
 
                         // Update velocity according to how tilted the phone is
                         vx = vx + leftToRight_degrees * updateRate * 2; 
@@ -57,15 +63,14 @@
                         dot.setAttribute('style', "left:" + (px) + "%;" + "top:" + (py) + "%;");
 
                         // Adjust oscillator frequency and volume based on position
-                        if (py < 50) {
-                            osc.frequency.value = 440 + (50 - py) * 10; // Higher frequency when dot moves up
-                        } else {
-                            osc.frequency.value = 440 - (py - 50) * 10; // Lower frequency when dot moves down
+                        if (osc) {
+                            if (py < 50) {
+                                osc.frequency.value = 440 + (50 - py) * 10; // Higher frequency when dot moves up
+                            } else {
+                                osc.frequency.value = 440 - (py - 50) * 10; // Lower frequency when dot moves down
+                            }
+                            osc.volume.value = -Math.abs(py - 50) / 10; // Adjust volume
                         }
-
-                        // Volume adjustment
-                        const volume = -Math.abs(py - 50) / 10; // Quieter as it moves away from center
-                        osc.volume.value = volume;
                     });
                 }
             });
@@ -74,6 +79,7 @@
 </head>
 <body style="background-color: lightblue;">
     <div id="main">
+        <button id="startButton" onclick="startAudio()" style="height: 50px;">Start Audio</button>
         <button id="accelPermsButton" onclick="getAccel()" style="height: 50px;">Get Accelerometer Permissions</button>
         <div class="indicatorDot" style="left: 30%; top: 30%;"></div>
     </div>
