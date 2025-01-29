@@ -49,45 +49,36 @@
         button:active {
             background-color: #666;
         }
-        .hidden {
-            display: none;
-        }
     </style>
 </head>
 <body>
     <h1>Interactive Phone Instrument</h1>
     
-    <!-- Permission Button -->
-    <button id="permissionButton">Allow Motion Permissions</button>
-
-    <!-- Sliders -->
-    <div id="sliderSection">
-        <div class="slider-container">
-            <div class="slider-label">Frequency Range</div>
-            <input id="frequencyRange" type="range" min="100" max="2000" value="440">
-        </div>
-
-        <div class="slider-container">
-            <div class="slider-label">Reverb Intensity</div>
-            <input id="reverbIntensity" type="range" min="0" max="1" step="0.1" value="0.5">
-        </div>
-
-        <div class="slider-container">
-            <div class="slider-label">Volume</div>
-            <input id="volumeControl" type="range" min="-60" max="0" step="1" value="-12">
-        </div>
+    <div class="slider-container">
+        <div class="slider-label">Frequency Range</div>
+        <input id="frequencyRange" type="range" min="100" max="2000" value="440">
     </div>
 
-    <!-- Controls -->
+    <div class="slider-container">
+        <div class="slider-label">Reverb Intensity</div>
+        <input id="reverbIntensity" type="range" min="0" max="1" step="0.1" value="0.5">
+    </div>
+
+    <div class="slider-container">
+        <div class="slider-label">Volume</div>
+        <input id="volumeControl" type="range" min="-60" max="0" step="1" value="-12">
+    </div>
+
     <div class="controls">
-        <button id="startButton" class="hidden">Start</button>
-        <button id="stopButton" class="hidden">Stop</button>
+        <button id="startButton">Start</button>
+        <button id="stopButton" style="display: none;">Stop</button>
     </div>
 
     <div class="indicatorDot"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
     <script>
+        // Initialize global variables
         let osc, reverb, volume, isTouching = false;
 
         // Initialize Tone.js elements
@@ -104,67 +95,57 @@
             volume.connect(reverb);
         }
 
-        // Handle motion
+        // Handle accelerometer and gyroscope data
         function handleMotion(event) {
-            const beta = event.beta;
-            const gamma = event.gamma;
+            const beta = event.beta; // Forward/backward tilt
+            const gamma = event.gamma; // Left/right tilt
 
+            // Change pitch based on beta
             osc.frequency.value = Tone.Frequency(440).transpose(beta / 10);
+
+            // Adjust tone or filter effects based on gamma
             reverb.decay = Math.max(0.1, gamma / 90);
         }
 
-        // Handle touch for reverb
+        // Handle touch events for reverb
         function handleTouchStart() {
             isTouching = true;
-            reverb.wet.value = 1;
+            reverb.wet.value = 1; // Increase reverb
         }
 
         function handleTouchEnd() {
             isTouching = false;
-            reverb.wet.value = 0;
+            reverb.wet.value = 0; // Remove reverb
         }
 
-        // Request motion permissions
-        document.getElementById('permissionButton').addEventListener('click', () => {
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(response => {
-                    if (response === 'granted') {
-                        window.addEventListener('deviceorientation', handleMotion);
-                        document.getElementById('permissionButton').classList.add('hidden');
-                        document.getElementById('startButton').classList.remove('hidden');
-                    } else {
-                        alert('Motion permissions denied.');
-                    }
-                }).catch(error => {
-                    alert('Error requesting motion permissions: ' + error.message);
-                });
-            } else {
-                window.addEventListener('deviceorientation', handleMotion);
-                document.getElementById('permissionButton').classList.add('hidden');
-                document.getElementById('startButton').classList.remove('hidden');
-            }
-        });
-
-        // Start button
+        // Start audio and sensors
         document.getElementById('startButton').addEventListener('click', async () => {
             await Tone.start();
             setupAudio();
 
-            // Hide sliders and show stop button
-            document.getElementById('sliderSection').classList.add('hidden');
-            document.getElementById('startButton').classList.add('hidden');
-            document.getElementById('stopButton').classList.remove('hidden');
+            // Request device motion permissions
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(response => {
+                    if (response === 'granted') {
+                        window.addEventListener('deviceorientation', handleMotion);
+                    }
+                });
+            } else {
+                window.addEventListener('deviceorientation', handleMotion);
+            }
+
+            // Show Stop button
+            document.getElementById('startButton').style.display = 'none';
+            document.getElementById('stopButton').style.display = 'inline';
         });
 
-        // Stop button
+        // Stop audio and sensors
         document.getElementById('stopButton').addEventListener('click', () => {
-            if (osc) osc.stop();
+            osc.stop();
             window.removeEventListener('deviceorientation', handleMotion);
 
-            // Show sliders and start button, hide stop button
-            document.getElementById('sliderSection').classList.remove('hidden');
-            document.getElementById('startButton').classList.remove('hidden');
-            document.getElementById('stopButton').classList.add('hidden');
+            document.getElementById('startButton').style.display = 'inline';
+            document.getElementById('stopButton').style.display = 'none';
         });
 
         // Add touch event listeners
