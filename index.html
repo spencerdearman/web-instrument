@@ -29,12 +29,12 @@
         let interval;
 
         const colorToNote = {
-            red: "C4",
-            orange: "D4",
-            yellow: "E4",
-            green: "G4",
-            blue: "A4",
-            purple: "B4"
+            red: ["C3", "C4", "C5"],
+            orange: ["D3", "D4", "D5"],
+            yellow: ["E3", "E4", "E5"],
+            green: ["G3", "G4", "G5"],
+            blue: ["A3", "A4", "A5"],
+            purple: ["B3", "B4", "B5"]
         };
 
         async function startCamera() {
@@ -50,8 +50,8 @@
         function getAverageColor(xStart, yStart, width, height) {
             let rTotal = 0, gTotal = 0, bTotal = 0;
             let count = 0;
-            for (let x = xStart; x < xStart + width; x++) {
-                for (let y = yStart; y < yStart + height; y++) {
+            for (let x = xStart; x < xStart + width; x += 5) {
+                for (let y = yStart; y < yStart + height; y += 5) {
                     const pixelData = ctx.getImageData(x, y, 1, 1).data;
                     rTotal += pixelData[0];
                     gTotal += pixelData[1];
@@ -77,19 +77,28 @@
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const width = canvas.width / 2;
-            const height = canvas.height / 2;
+            const gridSize = 10;
+            const width = canvas.width / gridSize;
+            const height = canvas.height / gridSize;
 
-            const colors = [
-                getAverageColor(0, 0, width, height), // Top-left
-                getAverageColor(width, 0, width, height), // Top-right
-                getAverageColor(0, height, width, height), // Bottom-left
-                getAverageColor(width, height, width, height) // Bottom-right
-            ];
+            let detectedColors = [];
+            let notesToPlay = [];
 
-            const notes = colors.map(color => colorToNote[color] || "C4");
-            synth.triggerAttackRelease(notes, "0.3s");
-            colorLabel.textContent = `Detected Colors: ${colors.join(", ")}`;
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const color = getAverageColor(i * width, j * height, width, height);
+                    detectedColors.push(color);
+                    if (colorToNote[color]) {
+                        notesToPlay.push(colorToNote[color][Math.floor(Math.random() * colorToNote[color].length)]);
+                    }
+                }
+            }
+
+            if (notesToPlay.length > 0) {
+                synth.triggerAttackRelease(notesToPlay, "0.3s");
+            }
+
+            colorLabel.textContent = `Detected Colors: ${detectedColors.join(", ")}`;
         }
 
         function togglePlayback() {
@@ -98,7 +107,7 @@
         }
 
         video.addEventListener("loadeddata", () => {
-            interval = setInterval(playNotes, 1000);
+            interval = setInterval(playNotes, 500);
         });
 
         startStopButton.addEventListener("click", togglePlayback);
