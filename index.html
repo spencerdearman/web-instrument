@@ -51,11 +51,24 @@
 
         async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const constraints = {
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 video.play();
             } catch (err) {
                 console.error("Error accessing camera:", err);
+                alert("Using default camera instead.");
+                
+                // Fallback to any available camera
+                try {
+                    const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    video.srcObject = fallbackStream;
+                    video.play();
+                } catch (fallbackErr) {
+                    console.error("No camera available:", fallbackErr);
+                }
             }
         }
 
