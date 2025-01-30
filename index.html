@@ -69,10 +69,6 @@
         async function startCamera() {
             alert("Running the start CAMERA function");
             try {
-                // tried making the 'facingMode' environment
-                alert(typeof navigator);
-                alert(typeof navigator.mediaDevices);
-                alert(typeof navigator.mediaDevices.getUserMedia);
                 const constraints = {
                     video: { facingMode: "environment", width: { ideal: 2772 }, height: { ideal: 2072 } }
                 };
@@ -276,9 +272,9 @@
 
         startStopButton.addEventListener("click", togglePlayback);
 
-        window.addEventListener("touchstart", startCamera);
+        // window.addEventListener("touchstart", startCamera);
 
-        // startCamera();
+        startCamera();
     </script>
 </body>
 </html>
