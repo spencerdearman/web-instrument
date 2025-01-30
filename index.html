@@ -271,7 +271,9 @@
 
         startStopButton.addEventListener("click", togglePlayback);
 
-        startCamera();
+        window.addEventListener("touchstart", startCamera);
+
+        // startCamera();
     </script>
 </body>
 </html>
