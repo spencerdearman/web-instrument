@@ -18,8 +18,13 @@
     <p id="colorLabel">Detected Colors: </p>
     <button id="startStop">Stop</button>
     <button id="toggleReverb">Toggle Reverb</button>
-    <button id="toggleDelay">Toggle Delay</button>
     <button id="toggleFilter">Toggle Filter</button>
+    <button id="toggleChorus">Toggle Chorus</button>
+    <button id="toggleDistortion">Toggle Distortion</button>
+    <button id="togglePhaser">Toggle Phaser</button>
+    <button id="toggleTremolo">Toggle Tremolo</button>
+    <button id="toggleVibrato">Toggle Vibrato</button>
+    <button id="toggleAutoFilter">Toggle AutoFilter</button>
 
     <script>
         const video = document.getElementById("video");
@@ -33,10 +38,22 @@
         const reverb = new Tone.Reverb({decay: 2, wet: 0.5});
         const delay = new Tone.FeedbackDelay("8n", 0.4);
         const filter = new Tone.Filter(800, "lowpass");
+        const chorus = new Tone.Chorus(4, 2.5, 0.5);
+        const distortion = new Tone.Distortion(0.4);
+        const phaser = new Tone.Phaser({frequency: 15, octaves: 5, baseFrequency: 1000});
+        const tremolo = new Tone.Tremolo(9, 0.75).start();
+        const vibrato = new Tone.Vibrato(5, 0.2);
+        const autoFilter = new Tone.AutoFilter("4n").start();
 
         let reverbEnabled = false;
-        let delayEnabled = false;
         let filterEnabled = false;
+        let chorusEnabled = false;
+        let distortionEnabled = false;
+        let phaserEnabled = false;
+        let tremoloEnabled = false;
+        let vibratoEnabled = false;
+        let autoFilterEnabled = false;
+
         let isPlaying = true;
         let interval;
 
@@ -57,6 +74,7 @@
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                video.playsinline = true;
                 video.play();
             } catch (err) {
                 console.error("Error accessing camera:", err);
@@ -79,6 +97,8 @@
             let count = 0;
             for (let x = xStart; x < xStart + width; x += 5) {
                 for (let y = yStart; y < yStart + height; y += 5) {
+                    // run outside of the for loop and do it for the larger array
+                    // see if that is slightly more efficient -->
                     const pixelData = ctx.getImageData(x, y, 1, 1).data;
                     rTotal += pixelData[0];
                     gTotal += pixelData[1];
@@ -115,9 +135,34 @@
                 lastNode = reverb;
             }
 
-            if (delayEnabled) {
-                lastNode.connect(delay);
-                lastNode = delay;
+            if (chorusEnabled) {
+                lastNode.connect(chorus);
+                lastNode = chorus;
+            }
+
+            if (distortionEnabled) {
+                lastNode.connect(distortion);
+                lastNode = distortion;
+            }
+
+            if (phaserEnabled) {
+                lastNode.connect(phaser);
+                lastNode = phaser;
+            }
+
+            if (tremoloEnabled) {
+                lastNode.connect(tremolo);
+                lastNode = tremolo;
+            }
+
+            if (vibratoEnabled) {
+                lastNode.connect(vibrato);
+                lastNode = vibrato;
+            }
+
+            if (autoFilterEnabled) {
+                lastNode.connect(autoFilter);
+                lastNode = autoFilter;
             }
 
             lastNode.toDestination();
@@ -129,18 +174,53 @@
             this.textContent = reverbEnabled ? "Reverb: ON" : "Reverb: OFF";
         });
 
-        document.getElementById("toggleDelay").addEventListener("click", function () {
-            delayEnabled = !delayEnabled;
-            updateEffects();
-            this.textContent = delayEnabled ? "Delay: ON" : "Delay: OFF";
-        });
-
         document.getElementById("toggleFilter").addEventListener("click", function () {
             filterEnabled = !filterEnabled;
             updateEffects();
             this.textContent = filterEnabled ? "Filter: ON" : "Filter: OFF";
         });
 
+        document.getElementById("toggleChorus").addEventListener("click", function () {
+            chorusEnabled = !chorusEnabled;
+            updateEffects();
+            this.textContent = chorusEnabled ? "Chorus: ON" : "Chorus: OFF";
+        });
+
+        document.getElementById("toggleDistortion").addEventListener("click", function () {
+            distortionEnabled = !distortionEnabled;
+            updateEffects();
+            this.textContent = distortionEnabled ? "Distortion: ON" : "Distortion: OFF";
+        });
+
+        document.getElementById("togglePhaser").addEventListener("click", function () {
+            phaserEnabled = !phaserEnabled;
+            updateEffects();
+            this.textContent = phaserEnabled ? "Phaser: ON" : "Phaser: OFF";
+        });
+
+        document.getElementById("toggleTremolo").addEventListener("click", function () {
+            tremoloEnabled = !tremoloEnabled;
+            updateEffects();
+            this.textContent = tremoloEnabled ? "Tremolo: ON" : "Tremolo: OFF";
+        });
+
+        document.getElementById("toggleVibrato").addEventListener("click", function () {
+            vibratoEnabled = !vibratoEnabled;
+            updateEffects();
+            this.textContent = vibratoEnabled ? "Vibrato: ON" : "Vibrato: OFF";
+        });
+
+        document.getElementById("toggleAutoFilter").addEventListener("click", function () {
+            autoFilterEnabled = !autoFilterEnabled;
+            updateEffects();
+            this.textContent = autoFilterEnabled ? "AutoFilter: ON" : "AutoFilter: OFF";
+        });        
+
+        // make the grid lines a slider, adn then also make it possibnle to change
+        //the grid size.
+
+        // play with hue, saturation, and light
+        // reduce the amount of options
         function playNotes() {
             if (!isPlaying) return;
             canvas.width = video.videoWidth;
