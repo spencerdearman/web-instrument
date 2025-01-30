@@ -70,6 +70,9 @@
             alert("Running the start CAMERA function");
             try {
                 // tried making the 'facingMode' environment
+                alert(typeof navigator);
+                alert(typeof navigator.mediaDevices);
+                alert(typeof navigator.mediaDevices.getUserMedia);
                 const constraints = {
                     video: { facingMode: "environment", width: { ideal: 2772 }, height: { ideal: 2072 } }
                 };
@@ -78,7 +81,8 @@
                 video.playsinline = true;
                 video.play();
             } catch (err) {
-                console.error("Error accessing camera:", err);
+
+                alert(err);
                 alert("Using default camera instead.");
                 
                 // Trying to go to any available camera?????
