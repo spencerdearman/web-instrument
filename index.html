@@ -2,86 +2,108 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Accelerometer Demo with Tone.js</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HarmoniCam</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
     <style>
-        .indicatorDot {
-            width: 30px;
-            height: 30px;
-            background-color: #e5b17e;
-            border-radius: 50%;
-            position: fixed;
-        }
+        body { text-align: center; font-family: Arial, sans-serif; }
+        video { width: 100%; max-width: 400px; display: block; margin: auto; }
+        button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 10px; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
-    <script>
-        var px = 50; // Position x and y
-        var py = 50;
-        var vx = 0.0; // Velocity x and y
-        var vy = 0.0;
-        var updateRate = 1 / 60; // Sensor refresh rate
-
-        let osc; // Oscillator
-
-        // Start Tone.js and create an oscillator
-        function startAudio() {
-            Tone.start().then(() => {
-                osc = new Tone.Oscillator(440, "sine").toDestination();
-                osc.start();
-                document.getElementById("startButton").style.display = "none"; // Hide start button
-            });
-        }
-
-        function getAccel() {
-            DeviceMotionEvent.requestPermission().then(response => {
-                if (response == 'granted') {
-                    // Add a listener to get smartphone orientation 
-                    window.addEventListener('deviceorientation', (event) => {
-                        // Expose each orientation angle in a more readable way
-                        const rotation_degrees = event.alpha;
-                        const frontToBack_degrees = event.beta;
-                        const leftToRight_degrees = event.gamma;
-
-                        // Update velocity according to how tilted the phone is
-                        vx = vx + leftToRight_degrees * updateRate * 2; 
-                        vy = vy + frontToBack_degrees * updateRate;
-
-                        // Update position and clip it to bounds
-                        px = px + vx * 0.5;
-                        if (px > 98 || px < 0) { 
-                            px = Math.max(0, Math.min(98, px)); // Clip px between 0-98
-                            vx = 0;
-                        }
-
-                        py = py + vy * 0.5;
-                        if (py > 98 || py < 0) {
-                            py = Math.max(0, Math.min(98, py)); // Clip py between 0-98
-                            vy = 0;
-                        }
-
-                        // Update dot position
-                        const dot = document.getElementsByClassName("indicatorDot")[0];
-                        dot.setAttribute('style', "left:" + (px) + "%;" + "top:" + (py) + "%;");
-
-                        // Adjust oscillator frequency and volume based on position
-                        if (osc) {
-                            if (py < 50) {
-                                osc.frequency.value = 440 + (50 - py) * 10; // Higher frequency when dot moves up
-                            } else {
-                                osc.frequency.value = 440 - (py - 50) * 10; // Lower frequency when dot moves down
-                            }
-                            osc.volume.value = -Math.abs(py - 50) / 10; // Adjust volume
-                        }
-                    });
-                }
-            });
-        }
-    </script>
 </head>
-<body style="background-color: lightblue;">
-    <div id="main">
-        <button id="startButton" onclick="startAudio()" style="height: 50px;">Start Audio</button>
-        <button id="accelPermsButton" onclick="getAccel()" style="height: 50px;">Get Accelerometer Permissions</button>
-        <div class="indicatorDot" style="left: 30%; top: 30%;"></div>
-    </div>
+<body>
+    <h1>HarmoniCam</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <p id="colorLabel">Detected Colors: </p>
+    <button id="startStop">Stop</button>
+
+    <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const colorLabel = document.getElementById("colorLabel");
+        const startStopButton = document.getElementById("startStop");
+        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        let isPlaying = true;
+        let interval;
+
+        const colorToNote = {
+            red: "C4",
+            orange: "D4",
+            yellow: "E4",
+            green: "G4",
+            blue: "A4",
+            purple: "B4"
+        };
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.play();
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+            }
+        }
+
+        function getAverageColor(xStart, yStart, width, height) {
+            let rTotal = 0, gTotal = 0, bTotal = 0;
+            let count = 0;
+            for (let x = xStart; x < xStart + width; x++) {
+                for (let y = yStart; y < yStart + height; y++) {
+                    const pixelData = ctx.getImageData(x, y, 1, 1).data;
+                    rTotal += pixelData[0];
+                    gTotal += pixelData[1];
+                    bTotal += pixelData[2];
+                    count++;
+                }
+            }
+            return rgbToColor(rTotal / count, gTotal / count, bTotal / count);
+        }
+
+        function rgbToColor(r, g, b) {
+            if (r > g + 30 && r > b + 30) return "red";
+            if (r > b && g > r) return "orange";
+            if (g > r + 30 && g > b + 30) return "green";
+            if (b > r + 30 && b > g + 30) return "blue";
+            if (r > g && b > g) return "purple";
+            return "yellow";
+        }
+
+        function playNotes() {
+            if (!isPlaying) return;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const width = canvas.width / 2;
+            const height = canvas.height / 2;
+
+            const colors = [
+                getAverageColor(0, 0, width, height), // Top-left
+                getAverageColor(width, 0, width, height), // Top-right
+                getAverageColor(0, height, width, height), // Bottom-left
+                getAverageColor(width, height, width, height) // Bottom-right
+            ];
+
+            const notes = colors.map(color => colorToNote[color] || "C4");
+            synth.triggerAttackRelease(notes, "0.3s");
+            colorLabel.textContent = `Detected Colors: ${colors.join(", ")}`;
+        }
+
+        function togglePlayback() {
+            isPlaying = !isPlaying;
+            startStopButton.textContent = isPlaying ? "Stop" : "Start";
+        }
+
+        video.addEventListener("loadeddata", () => {
+            interval = setInterval(playNotes, 1000);
+        });
+
+        startStopButton.addEventListener("click", togglePlayback);
+
+        startCamera();
+    </script>
 </body>
 </html>
