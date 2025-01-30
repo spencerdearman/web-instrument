@@ -12,11 +12,14 @@
     </style>
 </head>
 <body>
-    <h1>HarmoniCam</h1>
+    <h1>HueSynth</h1>
     <video id="video" autoplay></video>
     <canvas id="canvas" style="display: none;"></canvas>
     <p id="colorLabel">Detected Colors: </p>
     <button id="startStop">Stop</button>
+    <button id="toggleReverb">Toggle Reverb</button>
+    <button id="toggleDelay">Toggle Delay</button>
+    <button id="toggleFilter">Toggle Filter</button>
 
     <script>
         const video = document.getElementById("video");
@@ -27,11 +30,15 @@
         const synth = new Tone.PolySynth(Tone.Synth).toDestination();
         const gainNode = new Tone.Gain(0.5).toDestination(); 
         const compressor = new Tone.Compressor(-30, 3).toDestination();
+        const reverb = new Tone.Reverb({decay: 2, wet: 0.5});
+        const delay = new Tone.FeedbackDelay("8n", 0.4);
+        const filter = new Tone.Filter(800, "lowpass");
+
+        let reverbEnabled = false;
+        let delayEnabled = false;
+        let filterEnabled = false;
         let isPlaying = true;
         let interval;
-
-        synth.connect(gainNode);
-        gainNode.connect(compressor);
 
         const colorToNote = {
             red: ["C1", "C2", "C3", "C4", "C5", "C6"],
@@ -75,6 +82,49 @@
             if (r > g && b > g) return "purple";
             return "yellow";
         }
+
+        function updateEffects() {
+            synth.disconnect();
+
+            synth.connect(gainNode);
+            gainNode.connect(compressor);
+            let lastNode = compressor;
+
+            if (filterEnabled) {
+                lastNode.connect(filter);
+                lastNode = filter;
+            }
+            
+            if (reverbEnabled) {
+                lastNode.connect(reverb);
+                lastNode = reverb;
+            }
+
+            if (delayEnabled) {
+                lastNode.connect(delay);
+                lastNode = delay;
+            }
+
+            lastNode.toDestination();
+        }
+
+        document.getElementById("toggleReverb").addEventListener("click", function () {
+            reverbEnabled = !reverbEnabled;
+            updateEffects();
+            this.textContent = reverbEnabled ? "Reverb: ON" : "Reverb: OFF";
+        });
+
+        document.getElementById("toggleDelay").addEventListener("click", function () {
+            delayEnabled = !delayEnabled;
+            updateEffects();
+            this.textContent = delayEnabled ? "Delay: ON" : "Delay: OFF";
+        });
+
+        document.getElementById("toggleFilter").addEventListener("click", function () {
+            filterEnabled = !filterEnabled;
+            updateEffects();
+            this.textContent = filterEnabled ? "Filter: ON" : "Filter: OFF";
+        });
 
         function playNotes() {
             if (!isPlaying) return;
