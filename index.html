@@ -81,8 +81,6 @@
                 alert(err);
                 alert("Using default camera instead.");
                 
-                // Trying to go to any available camera?????
-                // QUESTION HOW CAN I GET THIS TO ACTUALLY WORK ON IPHONE?????
                 try {
                     const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
                     video.srcObject = fallbackStream;
@@ -98,8 +96,6 @@
             let count = 0;
             for (let x = xStart; x < xStart + width; x += 5) {
                 for (let y = yStart; y < yStart + height; y += 5) {
-                    // run outside of the for loop and do it for the larger array
-                    // see if that is slightly more efficient -->
                     const pixelData = ctx.getImageData(x, y, 1, 1).data;
                     rTotal += pixelData[0];
                     gTotal += pixelData[1];
@@ -239,7 +235,7 @@
                 for (let j = 0; j < gridSize; j++) {
                     const color = getAverageColor(i * width, j * height, width, height);
                     detectedColors.push(color);
-                    colorCounts[color] = (colorCounts[color] || 0) + 1; // Count occurrences
+                    colorCounts[color] = (colorCounts[color] || 0) + 1;
                 }
             }
 
@@ -272,9 +268,7 @@
 
         startStopButton.addEventListener("click", togglePlayback);
 
-        // window.addEventListener("touchstart", startCamera);
-
-        startCamera();
+        window.addEventListener("touchstart", startCamera);
     </script>
 </body>
 </html>
