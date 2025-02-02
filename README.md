@@ -1,6 +1,8 @@
 # **[HarmonyGrid](https://spencerdearman.github.io/web-instrument/)**
 
-**HarmonyGrid** is an interactive web-based tool that transforms colors detected by your camera into dynamic musical notes. By dividing the camera feed into a grid, HarmonyGrid maps colors and brightness levels to musical notes, creating a unique, ever-changing soundscape. It’s perfect for experimenting with audiovisual harmony or just having fun with colors and music!
+<img width="1261" alt="Screenshot 2025-02-02 at 5 25 42 PM" src="https://github.com/user-attachments/assets/0371e75f-31c5-4940-9b15-5397c64be593" />
+
+**HarmonyGrid** is an interactive web-based tool that transforms colors detected by your camera into dynamic musical notes. By dividing the camera feed into a grid, HarmonyGrid maps colors and brightness levels to musical notes, creating a unique soundscape.
 
 ---
 
@@ -24,7 +26,7 @@
      - **Phaser** – Creates sweeping sound effects.  
      - **Vibrato** – Adds pitch modulation for expressive tones.
 
-5. **Simple and Fun UI**  
+5. **Simple User Interface**  
    - Start the camera with a single button click.  
    - Adjust grid size and toggle effects seamlessly through intuitive controls.
 
