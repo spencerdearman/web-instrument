@@ -23,7 +23,7 @@
     <p id="colorLabel">Detected Colors: </p>
 
     <label id="gridSizeLabel">Grid Size: 1</label>
-    <input type="range" id="gridSize" min="0" max="5" value="1">
+    <input type="range" id="gridSize" min="1" max="6" value="1">
 
     <button id="startStop">Stop</button>
     <button id="toggleReverb">Toggle Reverb</button>
@@ -99,7 +99,7 @@
                     count++;
                 }
             }
-            return rgbToColor(r / count, g / count, b / count);
+            return { color: rgbToColor(r / count, g / count, b / count), brightness: getBrightness(r / count, g / count, b / count) };
         }
 
         function rgbToColor(r, g, b) {
@@ -111,48 +111,48 @@
             return "yellow";
         }
 
+        function getBrightness(r, g, b) {
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        }
+
         function playNotes() {
             if (!isPlaying) return;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const baseGridSize = parseInt(gridSizeSlider.value + 1, 10);
-            const gridSize = baseGridSize * baseGridSize;
+            const baseGridSize = parseInt(gridSizeSlider.value, 10);
             const width = canvas.width / baseGridSize;
             const height = canvas.height / baseGridSize;
 
             let detectedColors = [];
-            let colorCounts = {};
+            let notesToPlay = [];
 
             for (let i = 0; i < baseGridSize; i++) {
                 for (let j = 0; j < baseGridSize; j++) {
-                    const color = getAverageColor(i * width, j * height, width, height);
+                    const { color, brightness } = getAverageColor(i * width, j * height, width, height);
                     detectedColors.push(color);
-                    colorCounts[color] = (colorCounts[color] || 0) + 1;
+
+                    const colorToNote = {
+                        red: ["C1", "C2", "C3"],
+                        orange: ["D1", "D2", "D3"],
+                        yellow: ["E1", "E2", "E3"],
+                        green: ["F1", "F2", "F3"],
+                        blue: ["A1", "A2", "A3"],
+                        purple: ["B1", "B2", "B3"]
+                    };
+
+                    if (colorToNote[color]) {
+                        let note = colorToNote[color][Math.floor(Math.random() * 3)];
+                        let velocity = Math.max(0.2, brightness); // Ensure velocity is not too low
+                        notesToPlay.push({ note, velocity });
+                    }
                 }
             }
 
-            const colorToNote = {
-                red: ["C1", "C2", "C3"],
-                orange: ["D1", "D2", "D3"],
-                yellow: ["E1", "E2", "E3"],
-                green: ["F1", "F2", "F3"],
-                blue: ["A1", "A2", "A3"],
-                purple: ["B1", "B2", "B3"]
-            };
-
-            let notesToPlay = [];
-            for (const color in colorCounts) {
-                if (colorToNote[color]) {
-                    let note = colorToNote[color][Math.floor(Math.random() * 3)];
-                    notesToPlay.push(note);
-                }
-            }
-
-            if (notesToPlay.length > 0) {
-                synth.triggerAttackRelease(notesToPlay, "0.3s");
-            }
+            notesToPlay.forEach(({ note, velocity }) => {
+                synth.triggerAttackRelease(note, "0.3s", undefined, velocity);
+            });
 
             colorLabel.textContent = `Detected Colors: ${detectedColors.join(", ")}`;
         }
