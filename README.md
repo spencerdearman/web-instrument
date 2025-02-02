@@ -1,4 +1,4 @@
-# **[HarmonyGrid](https://spencerdearman.github.io/web-instrument/)**
+# **[HarmonyGrid](https://spencerdearman.github.io/harmony-grid/)**
 
 <img width="1261" alt="Screenshot 2025-02-02 at 5 25 42 PM" src="https://github.com/user-attachments/assets/0371e75f-31c5-4940-9b15-5397c64be593" />
 
