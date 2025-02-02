@@ -5,17 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HueSynth</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/netizenorg/netnet-standard-library/build/nn.min.js"></script>
     <style>
         body { text-align: center; font-family: Arial, sans-serif; }
-        video { width: 100%; max-width: 400px; display: block; margin: auto; }
+        video { width: 100%; max-width: 400px; display: none; margin: auto; }
         button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 10px; }
     </style>
 </head>
 <body>
     <h1>HueSynth</h1>
+    
+    <button id="allowCamera">Allow Camera</button>
+    
     <video id="video" autoplay></video>
     <canvas id="canvas" style="display: none;"></canvas>
     <p id="colorLabel">Detected Colors: </p>
+
     <button id="startStop">Stop</button>
     <button id="toggleReverb">Toggle Reverb</button>
     <button id="toggleFilter">Toggle Filter</button>
@@ -24,86 +29,118 @@
     <button id="togglePhaser">Toggle Phaser</button>
     <button id="toggleTremolo">Toggle Tremolo</button>
     <button id="toggleVibrato">Toggle Vibrato</button>
-    <button id="toggleAutoFilter">Toggle AutoFilter</button>
 
     <script>
         const video = document.getElementById("video");
+        const allowCameraButton = document.getElementById("allowCamera");
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
         const colorLabel = document.getElementById("colorLabel");
         const startStopButton = document.getElementById("startStop");
-        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-        const gainNode = new Tone.Gain(0.5).toDestination(); 
-        const compressor = new Tone.Compressor(-30, 3).toDestination();
-        const reverb = new Tone.Reverb({decay: 2, wet: 0.5});
-        const delay = new Tone.FeedbackDelay("8n", 0.4);
-        const filter = new Tone.Filter(800, "lowpass");
-        const chorus = new Tone.Chorus(4, 2.5, 0.5);
-        const distortion = new Tone.Distortion(0.4);
-        const phaser = new Tone.Phaser({frequency: 15, octaves: 5, baseFrequency: 1000});
-        const tremolo = new Tone.Tremolo(9, 0.75).start();
-        const vibrato = new Tone.Vibrato(5, 0.2);
-        const autoFilter = new Tone.AutoFilter("4n").start();
-
-        let reverbEnabled = false;
-        let filterEnabled = false;
-        let chorusEnabled = false;
-        let distortionEnabled = false;
-        let phaserEnabled = false;
-        let tremoloEnabled = false;
-        let vibratoEnabled = false;
-        let autoFilterEnabled = false;
 
         let isPlaying = true;
         let interval;
+        
+        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        const effects = {
+            reverb: new Tone.Reverb({ decay: 2, wet: 0.5 }),
+            filter: new Tone.Filter(800, "lowpass"),
+            chorus: new Tone.Chorus(4, 2.5, 0.5),
+            distortion: new Tone.Distortion(0.4),
+            phaser: new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }),
+            tremolo: new Tone.Tremolo(9, 0.75).start(),
+            vibrato: new Tone.Vibrato(5, 0.2)
+        };
 
-        const colorToNote = {
-            red: ["C1", "C2", "C3", "C4", "C5", "C6"],
-            orange: ["D1", "D2", "D3", "D4", "D5", "D6"],
-            yellow: ["E1", "E2", "E3", "E4", "E5", "E6"],
-            green: ["F1", "F2", "F3", "F4", "F5", "F6"],
-            blue: ["A1", "A2", "A3", "A4", "A5", "A6"],
-            purple: ["B1", "B2", "B3", "B4", "B5", "B6"]
+        const effectState = {
+            reverb: false,
+            filter: false,
+            chorus: false,
+            distortion: false,
+            phaser: false,
+            tremolo: false,
+            vibrato: false
         };
 
         async function startCamera() {
-            alert("Running the start CAMERA function");
             try {
                 const constraints = {
                     video: { facingMode: "environment", width: { ideal: 2772 }, height: { ideal: 2072 } }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
-                video.playsinline = true;
                 video.play();
+                video.style.display = "block";
+                allowCameraButton.style.display = "none"; // Hide button after permission granted
             } catch (err) {
-
-                alert(err);
-                alert("Using default camera instead.");
-                
-                try {
-                    const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    video.srcObject = fallbackStream;
-                    video.play();
-                } catch (fallbackErr) {
-                    console.error("No camera available:", fallbackErr);
-                }
+                console.error("Camera access denied:", err);
             }
         }
 
-        function getAverageColor(xStart, yStart, width, height) {
-            let rTotal = 0, gTotal = 0, bTotal = 0;
-            let count = 0;
-            for (let x = xStart; x < xStart + width; x += 5) {
-                for (let y = yStart; y < yStart + height; y += 5) {
-                    const pixelData = ctx.getImageData(x, y, 1, 1).data;
-                    rTotal += pixelData[0];
-                    gTotal += pixelData[1];
-                    bTotal += pixelData[2];
-                    count++;
+        allowCameraButton.addEventListener("click", startCamera);
+
+        function updateEffects() {
+            synth.disconnect();
+            let lastNode = synth;
+
+            for (const effect in effectState) {
+                if (effectState[effect]) {
+                    lastNode.connect(effects[effect]);
+                    lastNode = effects[effect];
                 }
             }
-            return rgbToColor(rTotal / count, gTotal / count, bTotal / count);
+
+            lastNode.toDestination();
+        }
+
+        function toggleEffect(effect, button) {
+            effectState[effect] = !effectState[effect];
+            updateEffects();
+            button.textContent = `${effect.charAt(0).toUpperCase() + effect.slice(1)}: ${effectState[effect] ? "ON" : "OFF"}`;
+        }
+
+        document.getElementById("toggleReverb").addEventListener("click", function () {
+            toggleEffect("reverb", this);
+        });
+
+        document.getElementById("toggleFilter").addEventListener("click", function () {
+            toggleEffect("filter", this);
+        });
+
+        document.getElementById("toggleChorus").addEventListener("click", function () {
+            toggleEffect("chorus", this);
+        });
+
+        document.getElementById("toggleDistortion").addEventListener("click", function () {
+            toggleEffect("distortion", this);
+        });
+
+        document.getElementById("togglePhaser").addEventListener("click", function () {
+            toggleEffect("phaser", this);
+        });
+
+        document.getElementById("toggleTremolo").addEventListener("click", function () {
+            toggleEffect("tremolo", this);
+        });
+
+        document.getElementById("toggleVibrato").addEventListener("click", function () {
+            toggleEffect("vibrato", this);
+        });
+
+        function getAverageColor() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const pixelData = ctx.getImageData(0, 0, width, height).data;
+
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let i = 0; i < pixelData.length; i += 4) {
+                r += pixelData[i];
+                g += pixelData[i + 1];
+                b += pixelData[i + 2];
+                count++;
+            }
+
+            return rgbToColor(r / count, g / count, b / count);
         }
 
         function rgbToColor(r, g, b) {
@@ -115,146 +152,27 @@
             return "yellow";
         }
 
-        function updateEffects() {
-            synth.disconnect();
-
-            synth.connect(gainNode);
-            gainNode.connect(compressor);
-            let lastNode = compressor;
-
-            if (filterEnabled) {
-                lastNode.connect(filter);
-                lastNode = filter;
-            }
-            
-            if (reverbEnabled) {
-                lastNode.connect(reverb);
-                lastNode = reverb;
-            }
-
-            if (chorusEnabled) {
-                lastNode.connect(chorus);
-                lastNode = chorus;
-            }
-
-            if (distortionEnabled) {
-                lastNode.connect(distortion);
-                lastNode = distortion;
-            }
-
-            if (phaserEnabled) {
-                lastNode.connect(phaser);
-                lastNode = phaser;
-            }
-
-            if (tremoloEnabled) {
-                lastNode.connect(tremolo);
-                lastNode = tremolo;
-            }
-
-            if (vibratoEnabled) {
-                lastNode.connect(vibrato);
-                lastNode = vibrato;
-            }
-
-            if (autoFilterEnabled) {
-                lastNode.connect(autoFilter);
-                lastNode = autoFilter;
-            }
-
-            lastNode.toDestination();
-        }
-
-        document.getElementById("toggleReverb").addEventListener("click", function () {
-            reverbEnabled = !reverbEnabled;
-            updateEffects();
-            this.textContent = reverbEnabled ? "Reverb: ON" : "Reverb: OFF";
-        });
-
-        document.getElementById("toggleFilter").addEventListener("click", function () {
-            filterEnabled = !filterEnabled;
-            updateEffects();
-            this.textContent = filterEnabled ? "Filter: ON" : "Filter: OFF";
-        });
-
-        document.getElementById("toggleChorus").addEventListener("click", function () {
-            chorusEnabled = !chorusEnabled;
-            updateEffects();
-            this.textContent = chorusEnabled ? "Chorus: ON" : "Chorus: OFF";
-        });
-
-        document.getElementById("toggleDistortion").addEventListener("click", function () {
-            distortionEnabled = !distortionEnabled;
-            updateEffects();
-            this.textContent = distortionEnabled ? "Distortion: ON" : "Distortion: OFF";
-        });
-
-        document.getElementById("togglePhaser").addEventListener("click", function () {
-            phaserEnabled = !phaserEnabled;
-            updateEffects();
-            this.textContent = phaserEnabled ? "Phaser: ON" : "Phaser: OFF";
-        });
-
-        document.getElementById("toggleTremolo").addEventListener("click", function () {
-            tremoloEnabled = !tremoloEnabled;
-            updateEffects();
-            this.textContent = tremoloEnabled ? "Tremolo: ON" : "Tremolo: OFF";
-        });
-
-        document.getElementById("toggleVibrato").addEventListener("click", function () {
-            vibratoEnabled = !vibratoEnabled;
-            updateEffects();
-            this.textContent = vibratoEnabled ? "Vibrato: ON" : "Vibrato: OFF";
-        });
-
-        document.getElementById("toggleAutoFilter").addEventListener("click", function () {
-            autoFilterEnabled = !autoFilterEnabled;
-            updateEffects();
-            this.textContent = autoFilterEnabled ? "AutoFilter: ON" : "AutoFilter: OFF";
-        });        
-
-        // make the grid lines a slider, adn then also make it possibnle to change
-        //the grid size.
-
-        // play with hue, saturation, and light
-        // reduce the amount of options
         function playNotes() {
             if (!isPlaying) return;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const gridSize = 3;
-            const width = canvas.width / gridSize;
-            const height = canvas.height / gridSize;
+            const detectedColor = getAverageColor();
+            colorLabel.textContent = `Detected Color: ${detectedColor}`;
 
-            let colorCounts = {}; // Store color frequencies
-            let detectedColors = [];
+            const colorToNote = {
+                red: ["C1", "C2", "C3"],
+                orange: ["D1", "D2", "D3"],
+                yellow: ["E1", "E2", "E3"],
+                green: ["F1", "F2", "F3"],
+                blue: ["A1", "A2", "A3"],
+                purple: ["B1", "B2", "B3"]
+            };
 
-            for (let i = 0; i < gridSize; i++) {
-                for (let j = 0; j < gridSize; j++) {
-                    const color = getAverageColor(i * width, j * height, width, height);
-                    detectedColors.push(color);
-                    colorCounts[color] = (colorCounts[color] || 0) + 1;
-                }
+            if (colorToNote[detectedColor]) {
+                synth.triggerAttackRelease(colorToNote[detectedColor][Math.floor(Math.random() * 3)], "0.3s");
             }
-
-            let notesToPlay = [];
-
-            for (const color in colorCounts) {
-                if (colorToNote[color]) {
-                    let velocity = Math.min(colorCounts[color] / (gridSize * gridSize), 1); // Normalize intensity (0-1)
-                    let note = colorToNote[color][Math.floor(Math.random() * colorToNote[color].length)];
-                    notesToPlay.push({ note, velocity });
-                }
-            }
-
-            // Play each note **once**, with its intensity scaled by frequency
-            notesToPlay.forEach(({ note, velocity }) => {
-                synth.triggerAttackRelease(note, "0.3s", undefined, velocity);
-            });
-
-            colorLabel.textContent = `Detected Colors: ${detectedColors.join(", ")}`;
         }
 
         function togglePlayback() {
@@ -262,13 +180,11 @@
             startStopButton.textContent = isPlaying ? "Stop" : "Start";
         }
 
+        startStopButton.addEventListener("click", togglePlayback);
+
         video.addEventListener("loadeddata", () => {
             interval = setInterval(playNotes, 200);
         });
-
-        startStopButton.addEventListener("click", togglePlayback);
-
-        window.addEventListener("touchstart", startCamera);
     </script>
 </body>
 </html>
