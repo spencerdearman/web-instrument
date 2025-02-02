@@ -5,21 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HueSynth</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/netizenorg/netnet-standard-library/build/nn.min.js"></script>
     <style>
         body { text-align: center; font-family: Arial, sans-serif; }
         video { width: 100%; max-width: 400px; display: none; margin: auto; }
-        button { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 10px; }
+        button, input { margin: 10px; padding: 10px 20px; font-size: 16px; border-radius: 10px; }
+        #gridSizeLabel { font-size: 18px; }
     </style>
 </head>
 <body>
     <h1>HueSynth</h1>
-    
+
     <button id="allowCamera">Allow Camera</button>
-    
+
     <video id="video" autoplay></video>
     <canvas id="canvas" style="display: none;"></canvas>
+
     <p id="colorLabel">Detected Colors: </p>
+
+    <label id="gridSizeLabel">Grid Size: 1</label>
+    <input type="range" id="gridSize" min="1" max="6" value="1">
 
     <button id="startStop">Stop</button>
     <button id="toggleReverb">Toggle Reverb</button>
@@ -32,6 +36,8 @@
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
         const colorLabel = document.getElementById("colorLabel");
+        const gridSizeSlider = document.getElementById("gridSize");
+        const gridSizeLabel = document.getElementById("gridSizeLabel");
         const startStopButton = document.getElementById("startStop");
 
         let isPlaying = true;
@@ -44,22 +50,15 @@
             vibrato: new Tone.Vibrato(5, 0.2)
         };
 
-        const effectState = {
-            reverb: false,
-            phaser: false,
-            vibrato: false
-        };
+        const effectState = { reverb: false, phaser: false, vibrato: false };
 
         async function startCamera() {
             try {
-                const constraints = {
-                    video: { facingMode: "environment", width: { ideal: 2772 }, height: { ideal: 2072 } }
-                };
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 video.srcObject = stream;
                 video.play();
                 video.style.display = "block";
-                allowCameraButton.style.display = "none"; // Hide button after permission granted
+                allowCameraButton.style.display = "none";
             } catch (err) {
                 console.error("Camera access denied:", err);
             }
@@ -70,14 +69,12 @@
         function updateEffects() {
             synth.disconnect();
             let lastNode = synth;
-
             for (const effect in effectState) {
                 if (effectState[effect]) {
                     lastNode.connect(effects[effect]);
                     lastNode = effects[effect];
                 }
             }
-
             lastNode.toDestination();
         }
 
@@ -87,31 +84,21 @@
             button.textContent = `${effect.charAt(0).toUpperCase() + effect.slice(1)}: ${effectState[effect] ? "ON" : "OFF"}`;
         }
 
-        document.getElementById("toggleReverb").addEventListener("click", function () {
-            toggleEffect("reverb", this);
-        });
+        document.getElementById("toggleReverb").addEventListener("click", function () { toggleEffect("reverb", this); });
+        document.getElementById("togglePhaser").addEventListener("click", function () { toggleEffect("phaser", this); });
+        document.getElementById("toggleVibrato").addEventListener("click", function () { toggleEffect("vibrato", this); });
 
-        document.getElementById("togglePhaser").addEventListener("click", function () {
-            toggleEffect("phaser", this);
-        });
-
-        document.getElementById("toggleVibrato").addEventListener("click", function () {
-            toggleEffect("vibrato", this);
-        });
-
-        function getAverageColor() {
-            const width = canvas.width;
-            const height = canvas.height;
-            const pixelData = ctx.getImageData(0, 0, width, height).data;
-
+        function getAverageColor(x, y, width, height) {
             let r = 0, g = 0, b = 0, count = 0;
-            for (let i = 0; i < pixelData.length; i += 4) {
-                r += pixelData[i];
-                g += pixelData[i + 1];
-                b += pixelData[i + 2];
-                count++;
+            for (let i = x; i < x + width; i += 5) {
+                for (let j = y; j < y + height; j += 5) {
+                    const pixelData = ctx.getImageData(i, j, 1, 1).data;
+                    r += pixelData[0];
+                    g += pixelData[1];
+                    b += pixelData[2];
+                    count++;
+                }
             }
-
             return rgbToColor(r / count, g / count, b / count);
         }
 
@@ -130,8 +117,21 @@
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const detectedColor = getAverageColor();
-            colorLabel.textContent = `Detected Color: ${detectedColor}`;
+            const baseGridSize = parseInt(gridSizeSlider.value, 10);
+            const gridSize = baseGridSize * baseGridSize;
+            const width = canvas.width / baseGridSize;
+            const height = canvas.height / baseGridSize;
+
+            let detectedColors = [];
+            let colorCounts = {};
+
+            for (let i = 0; i < baseGridSize; i++) {
+                for (let j = 0; j < baseGridSize; j++) {
+                    const color = getAverageColor(i * width, j * height, width, height);
+                    detectedColors.push(color);
+                    colorCounts[color] = (colorCounts[color] || 0) + 1;
+                }
+            }
 
             const colorToNote = {
                 red: ["C1", "C2", "C3"],
@@ -142,15 +142,29 @@
                 purple: ["B1", "B2", "B3"]
             };
 
-            if (colorToNote[detectedColor]) {
-                synth.triggerAttackRelease(colorToNote[detectedColor][Math.floor(Math.random() * 3)], "0.3s");
+            let notesToPlay = [];
+            for (const color in colorCounts) {
+                if (colorToNote[color]) {
+                    let note = colorToNote[color][Math.floor(Math.random() * 3)];
+                    notesToPlay.push(note);
+                }
             }
+
+            if (notesToPlay.length > 0) {
+                synth.triggerAttackRelease(notesToPlay, "0.3s");
+            }
+
+            colorLabel.textContent = `Detected Colors: ${detectedColors.join(", ")}`;
         }
 
         function togglePlayback() {
             isPlaying = !isPlaying;
             startStopButton.textContent = isPlaying ? "Stop" : "Start";
         }
+
+        gridSizeSlider.addEventListener("input", () => {
+            gridSizeLabel.textContent = `Grid Size: ${gridSizeSlider.value}`;
+        });
 
         startStopButton.addEventListener("click", togglePlayback);
 
