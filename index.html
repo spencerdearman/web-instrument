@@ -23,7 +23,7 @@
     <p id="colorLabel">Detected Colors: </p>
 
     <label id="gridSizeLabel">Grid Size: 1</label>
-    <input type="range" id="gridSize" min="1" max="6" value="1">
+    <input type="range" id="gridSize" min="0" max="5" value="1">
 
     <button id="startStop">Stop</button>
     <button id="toggleReverb">Toggle Reverb</button>
@@ -117,7 +117,7 @@
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const baseGridSize = parseInt(gridSizeSlider.value, 10);
+            const baseGridSize = parseInt(gridSizeSlider.value + 1, 10);
             const gridSize = baseGridSize * baseGridSize;
             const width = canvas.width / baseGridSize;
             const height = canvas.height / baseGridSize;
