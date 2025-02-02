@@ -23,11 +23,7 @@
 
     <button id="startStop">Stop</button>
     <button id="toggleReverb">Toggle Reverb</button>
-    <button id="toggleFilter">Toggle Filter</button>
-    <button id="toggleChorus">Toggle Chorus</button>
-    <button id="toggleDistortion">Toggle Distortion</button>
     <button id="togglePhaser">Toggle Phaser</button>
-    <button id="toggleTremolo">Toggle Tremolo</button>
     <button id="toggleVibrato">Toggle Vibrato</button>
 
     <script>
@@ -44,21 +40,13 @@
         const synth = new Tone.PolySynth(Tone.Synth).toDestination();
         const effects = {
             reverb: new Tone.Reverb({ decay: 2, wet: 0.5 }),
-            filter: new Tone.Filter(800, "lowpass"),
-            chorus: new Tone.Chorus(4, 2.5, 0.5),
-            distortion: new Tone.Distortion(0.4),
             phaser: new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }),
-            tremolo: new Tone.Tremolo(9, 0.75).start(),
             vibrato: new Tone.Vibrato(5, 0.2)
         };
 
         const effectState = {
             reverb: false,
-            filter: false,
-            chorus: false,
-            distortion: false,
             phaser: false,
-            tremolo: false,
             vibrato: false
         };
 
@@ -103,24 +91,8 @@
             toggleEffect("reverb", this);
         });
 
-        document.getElementById("toggleFilter").addEventListener("click", function () {
-            toggleEffect("filter", this);
-        });
-
-        document.getElementById("toggleChorus").addEventListener("click", function () {
-            toggleEffect("chorus", this);
-        });
-
-        document.getElementById("toggleDistortion").addEventListener("click", function () {
-            toggleEffect("distortion", this);
-        });
-
         document.getElementById("togglePhaser").addEventListener("click", function () {
             toggleEffect("phaser", this);
-        });
-
-        document.getElementById("toggleTremolo").addEventListener("click", function () {
-            toggleEffect("tremolo", this);
         });
 
         document.getElementById("toggleVibrato").addEventListener("click", function () {
