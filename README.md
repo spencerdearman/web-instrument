@@ -2,13 +2,13 @@
 
 <img width="1261" alt="Screenshot 2025-02-02 at 5 25 42 PM" src="https://github.com/user-attachments/assets/0371e75f-31c5-4940-9b15-5397c64be593" />
 
-**HarmonyGrid** is an interactive web-based tool that transforms colors detected by your camera into dynamic musical notes. By dividing the camera feed into a grid, HarmonyGrid maps colors and brightness levels to musical notes, creating a unique soundscape.
+**HarmonyGrid** is an interactive instrument that transforms colors detected by your camera into dynamic musical notes. By dividing the camera feed into a grid, HarmonyGrid maps colors and brightness levels to musical notes, creating a unique soundscape.
 
 ---
 
 ## **Features**
 1. **Dynamic Note Generation**  
-   - Colors detected from the camera feed are mapped to musical notes based on predefined color-to-note relationships.
+   - Colors detected from the camera feed are mapped to musical notes based on preset color-to-note relationships.
    - Brighter colors produce **louder, more intense notes**, while darker colors result in softer sounds.
 
 2. **Grid-Based Detection**  
@@ -24,7 +24,7 @@
    - Toggle on/off audio effects like:
      - **Reverb** – Adds depth and ambiance.  
      - **Phaser** – Creates sweeping sound effects.  
-     - **Vibrato** – Adds pitch modulation for expressive tones.
+     - **Vibrato** – Adds pitch modulations.
 
 5. **Simple User Interface**  
    - Start the camera with a single button click.  
@@ -54,7 +54,7 @@
    - Brightness levels (calculated using the luminance formula) scale note intensity (velocity), making brighter areas sound louder.
 
 4. **Audio Effects**  
-   - Toggle effects like **Reverb**, **Phaser**, and **Vibrato** to customize your sound experience.
+   - Toggle effects like **Reverb**, **Phaser**, and **Vibrato** to customize the sound.
 
 ---
 
